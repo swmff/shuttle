@@ -1,8 +1,7 @@
 #![doc = include_str!("../README.md")]
-#![doc(html_root_url = "https://guppy.stellular.net/api/docs/guppy/")]
-#![doc(html_favicon_url = "https://stellular.net/static/favicon.svg")]
-#![doc(html_logo_url = "https://avatars.githubusercontent.com/u/171628682")]
-#![doc(issue_tracker_base_url = "https://github.com/stellularorg/guppy/issues/")]
+#![doc(html_favicon_url = "https://swmff.com/static/favicon.svg")]
+#![doc(html_logo_url = "https://avatars.githubusercontent.com/u/174050063")]
+#![doc(issue_tracker_base_url = "https://github.com/swmff/shuttle/issues/")]
 
 use actix_files as fs;
 use actix_web::{web, App, HttpServer};
@@ -109,10 +108,6 @@ async fn main() -> std::io::Result<()> {
             // GET api
             .service(crate::api::auth::whoami)
             // POST api
-            // POST activity
-            .service(crate::api::auth::post_activity_request)
-            .service(crate::api::auth::delete_activity_request)
-            .service(crate::api::auth::favorite_request)
             // POST auth
             .service(crate::api::auth::callback_request)
             .service(crate::api::auth::register)
@@ -139,8 +134,6 @@ async fn main() -> std::io::Result<()> {
             .service(crate::pages::auth::followers_request)
             .service(crate::pages::auth::following_request)
             .service(crate::pages::auth::user_settings_request)
-            .service(crate::pages::auth::view_post_request)
-            .service(crate::pages::auth::profile_view_request)
     })
     .bind(("0.0.0.0", port))?
     .run()

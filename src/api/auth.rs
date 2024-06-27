@@ -1,7 +1,6 @@
-use actix_web::{delete, get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
-use serde_json::json;
+use actix_web::{get, post, web, HttpMessage, HttpRequest, HttpResponse, Responder};
 
-use crate::db::{self, AppData, DefaultReturn, FullUser, UserFollow, UserMetadata};
+use crate::db::{self, AppData, DefaultReturn, UserFollow, UserMetadata};
 use dorsal::utility;
 
 #[derive(Default, PartialEq, serde::Deserialize)]
@@ -91,44 +90,31 @@ pub async fn login(body: web::Json<LoginInfo>, data: web::Data<AppData>) -> impl
     let id = body.uid.trim();
     let id_hashed = utility::hash(id.to_string());
 
-    let res = data
+    // return
+    match data
         .db
         .get_user_by_hashed(id_hashed) // if the user is returned, that means the ID is valid
-        .await;
+        .await
+    {
+        Ok(_) => {
+            let set_cookie = format!("__Secure-Token={}; SameSite=Lax; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", body.uid, 60 * 60 * 24 * 365);
 
-    let set_cookie = if res.is_ok() {
-        format!("__Secure-Token={}; SameSite=Lax; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", body.uid, 60 * 60 * 24 * 365)
-    } else {
-        String::new()
-    };
-
-    if res.is_ok() == false {
-        return HttpResponse::NotAcceptable()
-            .append_header(("Set-Cookie", if res.is_ok() { &set_cookie } else { "" }))
-            .append_header(("Content-Type", "application/json"))
-            .body(
-                serde_json::to_string::<DefaultReturn<Option<FullUser<UserMetadata>>>>(
-                    &DefaultReturn {
+            HttpResponse::Ok()
+                .append_header(("Set-Cookie", set_cookie.as_str()))
+                .append_header(("Content-Type", "application/json"))
+                .body(
+                    serde_json::to_string::<DefaultReturn<()>>(&DefaultReturn {
                         success: true,
-                        message: String::new(),
-                        payload: None,
-                    },
+                        message: body.uid.to_string(),
+                        payload: (),
+                    })
+                    .unwrap(),
                 )
-                .unwrap(),
-            );
+        }
+        Err(e) => HttpResponse::NotAcceptable()
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string::<DefaultReturn<()>>(&e.into()).unwrap()),
     }
-
-    // return
-    return HttpResponse::Ok()
-        .append_header(("Set-Cookie", if res.is_ok() { &set_cookie } else { "" }))
-        .append_header(("Content-Type", "application/json"))
-        .body(
-            serde_json::to_string(&json! ({
-                "success": true,
-                "message": body.uid,
-            }))
-            .unwrap(),
-        );
 }
 
 #[post("/api/v1/auth/login-st")]
@@ -139,44 +125,31 @@ pub async fn login_secondary_token(
     let id = body.uid.trim();
     let id_unhashed = id.to_string();
 
-    let res = data
-        .db
-        .get_user_by_unhashed_st(id_unhashed) // if the user is returned, that means the token is valid
-        .await;
-
-    let set_cookie = if res.is_ok() {
-        format!("__Secure-Token={}; SameSite=Lax; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", body.uid, 60 * 60 * 24 * 365)
-    } else {
-        String::new()
-    };
-
-    if res.is_ok() == false {
-        return HttpResponse::NotAcceptable()
-            .append_header(("Set-Cookie", if res.is_ok() { &set_cookie } else { "" }))
-            .append_header(("Content-Type", "application/json"))
-            .body(
-                serde_json::to_string::<DefaultReturn<Option<FullUser<UserMetadata>>>>(
-                    &DefaultReturn {
-                        success: true,
-                        message: String::new(),
-                        payload: None,
-                    },
-                )
-                .unwrap(),
-            );
-    }
-
     // return
-    return HttpResponse::Ok()
-        .append_header(("Set-Cookie", if res.is_ok() { &set_cookie } else { "" }))
-        .append_header(("Content-Type", "application/json"))
-        .body(
-            serde_json::to_string(&json! ({
-                "success": true,
-                "message": body.uid,
-            }))
-            .unwrap(),
-        );
+    match data
+        .db
+        .get_user_by_unhashed_st(id_unhashed) // if the user is returned, that means the ID is valid
+        .await
+    {
+        Ok(_) => {
+            let set_cookie = format!("__Secure-Token={}; SameSite=Lax; Secure; Path=/; HostOnly=true; HttpOnly=true; Max-Age={}", body.uid, 60 * 60 * 24 * 365);
+
+            HttpResponse::Ok()
+                .append_header(("Set-Cookie", set_cookie.as_str()))
+                .append_header(("Content-Type", "application/json"))
+                .body(
+                    serde_json::to_string::<DefaultReturn<()>>(&DefaultReturn {
+                        success: true,
+                        message: body.uid.to_string(),
+                        payload: (),
+                    })
+                    .unwrap(),
+                )
+        }
+        Err(e) => HttpResponse::NotAcceptable()
+            .append_header(("Content-Type", "application/json"))
+            .body(serde_json::to_string::<DefaultReturn<()>>(&e.into()).unwrap()),
+    }
 }
 
 #[get("/api/v1/auth/logout")]
@@ -401,7 +374,17 @@ pub async fn follow_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
     // return
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
-        .body(serde_json::to_string(&res).unwrap());
+        .body(
+            serde_json::to_string(&match res {
+                Ok(r) => DefaultReturn {
+                    success: true,
+                    message: String::from("Followed user."),
+                    payload: r,
+                },
+                Err(e) => e.into(),
+            })
+            .unwrap(),
+        );
 }
 
 #[post("/api/v1/auth/users/{name:.*}/update")]
@@ -577,7 +560,7 @@ pub async fn avatar_request(req: HttpRequest, data: web::Data<AppData>) -> impl 
         .http_client
         .get(avatar)
         .timeout(std::time::Duration::from_millis(5_000))
-        .insert_header(("User-Agent", "stellular-bundlrs/1.0"))
+        .insert_header(("User-Agent", "swmff-shuttle/1.0"))
         .send()
         .await;
 
@@ -630,96 +613,4 @@ pub async fn level_request(req: HttpRequest, data: web::Data<AppData>) -> impl R
     return HttpResponse::Ok()
         .append_header(("Content-Type", "application/json"))
         .body(serde_json::to_string::<db::RoleLevel>(&res.ok().unwrap().level).unwrap());
-}
-
-// activity
-#[post("/api/v1/activity")]
-pub async fn post_activity_request(
-    req: HttpRequest,
-    body: web::Json<db::PCreatePost>,
-    data: web::Data<AppData>,
-) -> impl Responder {
-    // get token user
-    let (_, _, token_user) = crate::pages::base::check_auth_status(req, data.clone()).await;
-
-    if token_user.is_none() {
-        return HttpResponse::NotAcceptable()
-            .append_header(("Content-Type", "text/plain"))
-            .body("An account is required to do this");
-    }
-
-    let token_user = token_user.unwrap().ok().unwrap();
-
-    // create props
-    let mut props = body.clone();
-    props.author = token_user.user.username;
-
-    // post activity
-    let res = data.db.create_activity_post(&mut props).await;
-
-    // return
-    return HttpResponse::Ok()
-        .append_header(("Content-Type", "application/json"))
-        .body(serde_json::to_string(&res).unwrap());
-}
-
-#[post("/api/v1/activity/{id:.*}/favorite")]
-/// Toggle a post favorite
-pub async fn favorite_request(req: HttpRequest, data: web::Data<db::AppData>) -> impl Responder {
-    let post_id = req.match_info().get("id").unwrap();
-
-    // verify auth status
-    let (set_cookie, _, token_user) =
-        crate::pages::base::check_auth_status(req.clone(), data.clone()).await;
-
-    if token_user.is_none() {
-        return HttpResponse::NotAcceptable().body("An account is required to favorite posts.");
-    }
-
-    // ...
-    let res = data
-        .db
-        .toggle_user_post_favorite(
-            token_user.unwrap().ok().unwrap().user.username,
-            post_id.to_string(),
-        )
-        .await;
-
-    // return
-    return HttpResponse::Ok()
-        .append_header(("Content-Type", "application/json"))
-        .append_header(("Set-Cookie", set_cookie))
-        .body(serde_json::to_string(&res).unwrap());
-}
-
-#[delete("/api/v1/activity/{id:.*}")]
-/// Delete an activity post
-pub async fn delete_activity_request(
-    req: HttpRequest,
-    data: web::Data<db::AppData>,
-) -> impl Responder {
-    let post_id = req.match_info().get("id").unwrap();
-
-    // verify auth status
-    let (set_cookie, _, token_user) =
-        crate::pages::base::check_auth_status(req.clone(), data.clone()).await;
-
-    if token_user.is_none() {
-        return HttpResponse::NotAcceptable().body("An account is required to manage posts.");
-    }
-
-    // ...
-    let res = data
-        .db
-        .delete_activity_post(
-            post_id.to_string(),
-            Option::Some(token_user.unwrap().ok().unwrap().user.username),
-        )
-        .await;
-
-    // return
-    return HttpResponse::Ok()
-        .append_header(("Content-Type", "application/json"))
-        .append_header(("Set-Cookie", set_cookie))
-        .body(serde_json::to_string(&res).unwrap());
 }

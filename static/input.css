@@ -3,15 +3,16 @@
 @tailwind utilities;
 
 body {
-    @apply text-gray-950 dark:text-slate-200;
+    @apply text-gray-950 dark:text-slate-200 animate-fade-in;
+    @apply bg-neutral-300 dark:bg-neutral-900 h-screen;
 }
 
 svg {
     @apply stroke-current;
 }
 
-body {
-    @apply bg-neutral-300 dark:bg-neutral-900 h-screen;
+#theme_button svg {
+    @apply fill-current;
 }
 
 main {
@@ -45,7 +46,7 @@ button,
 a.button {
     @apply bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-100 hover:dark:bg-neutral-700/50; /* bg */
     @apply flex gap-2 items-center justify-center; /* flex */
-    @apply transition-all px-3 py-1 text-gray-950 dark:text-slate-200 w-max; /* misc */
+    @apply transition-all px-3 py-1 text-gray-950 dark:text-slate-200 w-max min-h-[32px]; /* misc */
     user-select: none;
     text-decoration: none !important;
     height: max-content;
@@ -68,7 +69,7 @@ a.button.tertiary {
 
 button.theme\:primary,
 a.button.theme\:primary {
-    @apply !bg-brand hover:!bg-brand-low !text-black;
+    @apply !bg-swmff hover:!bg-swmff !text-black;
 }
 
 button.tab,
@@ -91,9 +92,19 @@ a.button.red {
     @apply !text-red-800 dark:!text-red-300;
 }
 
+button.blue,
+a.button.blue {
+    @apply !text-sky-800 dark:!text-sky-300;
+}
+
 /* typography */
+p,
+span {
+    @apply break-all text-wrap max-w-full;
+}
+
 a,
-a code,
+w-maxa code,
 a strong,
 a em {
     @apply text-blue-800 dark:text-blue-300 hover:underline;
@@ -201,7 +212,7 @@ select {
 textarea,
 input,
 select {
-    @apply focus:outline-none focus:ring-2 focus:ring-brand-low h-max w-full;
+    @apply focus:outline-none focus:ring-2 focus:ring-swmff h-max w-full;
 }
 
 input.small,
@@ -376,12 +387,12 @@ nav .button,
 .link-list .option button,
 .link-list .option a.button {
     @apply px-3 py-1 !bg-transparent hover:shadow-lg;
-    @apply hover:ring-2 hover:ring-brand-low; /* fancy effects */
+    @apply hover:ring-2 hover:ring-swmff; /* fancy effects */
     min-height: 35px;
 }
 
 nav button.selected {
-    @apply !bg-brand text-black scale-105;
+    @apply !bg-swmff text-black scale-105;
 }
 
 /* chips */
@@ -394,13 +405,29 @@ nav button.selected {
     @apply flex flex-col absolute bottom-0;
     @apply backdrop-blur-lg bg-neutral-200/75 dark:bg-neutral-800/75;
     @apply shadow shadow-neutral-800/5 dark:shadow-neutral-800/25;
-    @apply max-w-full max-h-full w-[25rem] h-max z-50;
+    @apply max-w-full max-h-full w-full md:w-[25rem] h-max z-50;
     overflow: hidden auto;
+}
+
+.link-list.elevated {
+    @apply bg-neutral-100/75 dark:bg-neutral-700/75;
+}
+
+.link-list.round {
+    @apply rounded;
 }
 
 .link-list .option {
     @apply flex justify-center bg-transparent p-4 transition-colors duration-150;
     @apply hover:!bg-neutral-300/25 hover:dark:!bg-neutral-700/25;
+}
+
+.link-list.elevated .option {
+    @apply hover:!bg-neutral-300/25 hover:dark:!bg-neutral-800/25;
+}
+
+.link-list .option.small {
+    @apply p-2 justify-start;
 }
 
 .link-list .option button,
@@ -409,7 +436,7 @@ nav button.selected {
 }
 
 dialog {
-    @apply flex flex-col absolute bottom-0;
+    @apply flex flex-col absolute bottom-0 animate-fade-in;
     @apply backdrop-blur-lg bg-neutral-200/75 dark:bg-neutral-800/75;
     @apply m-auto fixed border-none text-current shadow-md;
     display: none;
@@ -422,4 +449,60 @@ dialog[open] {
 dialog::backdrop {
     background: rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(5px);
+}
+
+/* table */
+table {
+    @apply border-collapse table-fixed text-wrap whitespace-normal min-w-full overflow-auto max-w-full;
+}
+
+table thead tr {
+    @apply border-b-2 border-b-swmff;
+}
+
+table thead tr th {
+    @apply text-left bg-transparent;
+    padding: 6px 8px;
+}
+
+table tbody tr:nth-child(odd) {
+    @apply bg-neutral-200/50 dark:bg-neutral-800/50;
+}
+
+table tbody tr {
+    @apply bg-transparent border-b border-b-neutral-400 dark:border-b-neutral-700;
+    @apply hover:bg-neutral-200 dark:hover:bg-neutral-800;
+}
+
+table tbody tr td {
+    @apply text-left bg-transparent border-l border-l-neutral-400 dark:border-l-neutral-700;
+    @apply break-words whitespace-pre-wrap;
+    padding: 6px 8px;
+}
+
+/* details */
+details {
+    @apply bg-neutral-200 dark:bg-neutral-800 p-2 rounded-sm;
+    @apply hover:bg-neutral-100 dark:hover:bg-neutral-700 transition-colors;
+}
+
+details[open] {
+    @apply ring-2 ring-swmff shadow-md;
+}
+
+details summary {
+    @apply p-2 cursor-pointer;
+}
+
+details summary + * {
+    @apply animate-fade-in;
+}
+
+details.secondary {
+    @apply bg-neutral-300 dark:bg-neutral-900 hover:bg-neutral-300/75 dark:hover:bg-neutral-900/75;
+}
+
+details.small,
+details.small summary {
+    @apply p-1;
 }

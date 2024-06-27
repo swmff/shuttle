@@ -4,38 +4,23 @@ use crate::db::AppData;
 use dorsal::db::special::auth_db::{FullUser, UserMetadata, Result};
 
 pub struct BaseTemplate {
-    pub info: String,
     pub auth_state: bool,
-    pub bundlrs: String,
     pub deducktive: String,
     pub site_name: String,
     pub body_embed: String,
 }
 
 pub fn get_base_values(token_cookie: bool) -> BaseTemplate {
-    let info_req = std::env::var("INFO");
-    let mut info: String = String::new();
-
-    if info_req.is_err() && info.is_empty() {
-        info = "/pub/info".to_string();
-    } else {
-        info = info_req.unwrap();
-    }
-
-    let body_embed_req = std::env::var("BODY_EMBED");
-    let body_embed = if body_embed_req.is_ok() {
-        body_embed_req.unwrap()
-    } else {
-        String::new()
+    let body_embed = match std::env::var("BODY_EMBED") {
+        Ok(b) => b,
+        Err(_) => String::new(),
     };
 
     // return
     BaseTemplate {
-        info,
         auth_state: token_cookie,
-        bundlrs: std::env::var("BUNDLRS_ROOT").unwrap_or(String::new()),
         deducktive: std::env::var("DEDUCKTIVE_ROOT").unwrap_or(String::new()),
-        site_name: std::env::var("SITE_NAME").unwrap_or("Guppy".to_string()),
+        site_name: std::env::var("SITE_NAME").unwrap_or("Shuttle".to_string()),
         body_embed,
     }
 }

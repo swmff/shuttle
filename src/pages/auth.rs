@@ -15,9 +15,7 @@ pub struct CallbackQueryProps {
 struct LoginTemplate {
     callback: String,
     // required fields (super::base)
-    info: String,
     auth_state: bool,
-    bundlrs: String,
     site_name: String,
     body_embed: String,
 }
@@ -28,9 +26,7 @@ struct RegisterTemplate {
     callback: String,
     invite_code_required: bool,
     // required fields (super::base)
-    info: String,
     auth_state: bool,
-    bundlrs: String,
     site_name: String,
     body_embed: String,
 }
@@ -40,33 +36,7 @@ struct RegisterTemplate {
 struct LoginSecondaryTokenTemplate {
     callback: String,
     // required fields (super::base)
-    info: String,
     auth_state: bool,
-    bundlrs: String,
-    site_name: String,
-    body_embed: String,
-}
-
-#[derive(Template)]
-#[template(path = "auth/user_profile.html")]
-struct UserProfileTemplate {
-    user: UserState<UserMetadata>,
-    meta: UserMetadata,
-    user_nick: String,
-    can_edit: bool,
-    edit_mode: bool,
-    about: String,
-    is_following: bool,
-    followers_count: usize,
-    following_count: usize,
-    // activity stuff
-    activity: Vec<(db::ActivityPost, Vec<db::ActivityPost>, i32)>,
-    offset: i32,
-    // required fields (super::base)
-    info: String,
-    auth_state: bool,
-    bundlrs: String,
-    deducktive: String,
     site_name: String,
     body_embed: String,
 }
@@ -78,33 +48,13 @@ pub struct QueryProps {
 }
 
 #[derive(Template)]
-#[template(path = "auth/activity_post.html")]
-struct ViewPostTemplate {
-    user: UserState<UserMetadata>,
-    can_edit: bool,
-    // post stuff
-    post: db::ActivityPost,
-    replies: Vec<(db::ActivityPost, Vec<db::ActivityPost>, i32)>,
-    favorites_count: i32,
-    // required fields (super::base)
-    info: String,
-    auth_state: bool,
-    bundlrs: String,
-    deducktive: String,
-    site_name: String,
-    body_embed: String,
-}
-
-#[derive(Template)]
 #[template(path = "auth/followers.html")]
 struct FollowersTemplate {
     followers: Vec<Log>,
     user: UserState<UserMetadata>,
     offset: i32,
     // required fields (super::base)
-    info: String,
     auth_state: bool,
-    bundlrs: String,
     site_name: String,
     body_embed: String,
 }
@@ -116,9 +66,7 @@ struct FollowingTemplate {
     user: UserState<UserMetadata>,
     offset: i32,
     // required fields (super::base)
-    info: String,
     auth_state: bool,
-    bundlrs: String,
     site_name: String,
     body_embed: String,
 }
@@ -134,9 +82,7 @@ struct SettingsTemplate {
     profile: UserState<UserMetadata>,
     metadata: String,
     // required fields (super::base)
-    info: String,
     auth_state: bool,
-    bundlrs: String,
     site_name: String,
     body_embed: String,
 }
@@ -159,9 +105,7 @@ pub async fn register_request(
                 callback: info.callback.clone(),
                 invite_code_required: invite_codes.is_some(),
                 // required fields
-                info: base.info,
                 auth_state: base.auth_state,
-                bundlrs: base.bundlrs,
                 site_name: base.site_name,
                 body_embed: base.body_embed,
             }
@@ -184,9 +128,7 @@ pub async fn login_request(
             LoginTemplate {
                 callback: info.callback.clone(),
                 // required fields
-                info: base.info,
                 auth_state: base.auth_state,
-                bundlrs: base.bundlrs,
                 site_name: base.site_name,
                 body_embed: base.body_embed,
             }
@@ -209,213 +151,13 @@ pub async fn login_secondary_token_request(
             LoginSecondaryTokenTemplate {
                 callback: info.callback.clone(),
                 // required fields
-                info: base.info,
                 auth_state: base.auth_state,
-                bundlrs: base.bundlrs,
                 site_name: base.site_name,
                 body_embed: base.body_embed,
             }
             .render()
             .unwrap(),
         );
-}
-
-#[get("/{username:.*}")]
-/// Available at "/{username}"
-pub async fn profile_view_request(
-    req: HttpRequest,
-    data: web::Data<AppData>,
-    info: web::Query<QueryProps>,
-) -> impl Responder {
-    // get user
-    let username: String = req.match_info().get("username").unwrap().to_string();
-    let username_c = username.clone();
-
-    let user = data.db.get_user_by_username(username).await;
-
-    if user.is_ok() == false {
-        return HttpResponse::NotFound()
-            .append_header(("Content-Type", "text/plain"))
-            .body("404: Not Found");
-    }
-
-    let unwrap = user.ok().unwrap();
-
-    // verify auth status
-    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
-
-    // ...
-    let base = base::get_base_values(req.cookie("__Secure-Token").is_some());
-
-    // ...
-    let followers_res: db::DefaultReturn<usize> =
-        data.db.get_user_follow_count(username_c.clone()).await;
-
-    let following_res: db::DefaultReturn<usize> =
-        data.db.get_user_following_count(username_c.clone()).await;
-
-    let is_following_res: Option<db::DefaultReturn<Option<db::Log>>> =
-        if token_user.is_some() && token_user.as_ref().unwrap().is_ok() {
-            Option::Some(
-                data.db
-                    .get_follow_by_user(
-                        token_user
-                            .as_ref()
-                            .unwrap()
-                            .as_ref()
-                            .ok()
-                            .unwrap()
-                            .user
-                            .username
-                            .clone(),
-                        username_c.clone(),
-                    )
-                    .await,
-            )
-        } else {
-            Option::None
-        };
-
-    let followers_count = followers_res.payload;
-    let following_count = following_res.payload;
-    let is_following = if is_following_res.is_some() {
-        is_following_res.unwrap().payload.is_some()
-    } else {
-        false
-    };
-
-    let user = unwrap.clone().user;
-    let edit_mode = if info.edit.is_some() {
-        info.edit.unwrap()
-    } else {
-        false
-    };
-
-    // ...
-    let active_user = if token_user.is_some() && token_user.as_ref().unwrap().is_ok() {
-        Option::Some(token_user.unwrap().as_ref().ok().unwrap().user.clone())
-    } else {
-        Option::None
-    };
-
-    let can_edit = active_user.is_some() && active_user.as_ref().unwrap().username == user.username;
-
-    // activity
-    let posts_res: Vec<(db::ActivityPost, Vec<db::ActivityPost>, i32)> = data
-        .db
-        .get_user_activity(username_c.clone(), info.offset)
-        .await
-        .payload
-        // this really *probably* won't fail
-        .unwrap();
-
-    // ...
-    let props = UserProfileTemplate {
-        user: user.clone(),
-        auth_state: base.auth_state,
-        info: base.info,
-        bundlrs: base.bundlrs,
-        deducktive: base.deducktive,
-        site_name: base.site_name,
-        body_embed: base.body_embed,
-        meta: user.metadata.clone(),
-        user_nick: if user.metadata.nickname.is_some() {
-            user.metadata.nickname.as_ref().unwrap().to_string()
-        } else {
-            username_c
-        },
-        can_edit,
-        edit_mode,
-        about: crate::markup::render(&user.metadata.about.clone()),
-        is_following,
-        followers_count,
-        following_count,
-        // activity
-        activity: posts_res,
-        offset: if info.offset.is_some() {
-            info.offset.unwrap()
-        } else {
-            0
-        },
-    };
-
-    return HttpResponse::Ok()
-        .append_header(("Set-Cookie", set_cookie))
-        .append_header(("Content-Type", "text/html"))
-        .body(props.render().unwrap());
-}
-
-#[get("/{username:.*}/activity/{id}")]
-/// Available at "/{username}/activity/{id}"
-pub async fn view_post_request(req: HttpRequest, data: web::Data<AppData>) -> impl Responder {
-    let post_id: String = req.match_info().get("id").unwrap().to_string();
-    let username: String = req.match_info().get("username").unwrap().to_string();
-
-    // get user
-    let user = data.db.get_user_by_username(username).await;
-
-    if user.is_ok() == false {
-        return HttpResponse::NotFound()
-            .append_header(("Content-Type", "text/plain"))
-            .body("404: Not Found");
-    }
-
-    let unwrap = user.ok().unwrap();
-
-    // verify auth status
-    let (set_cookie, _, token_user) = base::check_auth_status(req.clone(), data.clone()).await;
-
-    // ...
-    let base = base::get_base_values(req.cookie("__Secure-Token").is_some());
-    let user = unwrap.clone().user;
-
-    let active_user = if token_user.is_some() && token_user.as_ref().unwrap().is_ok() {
-        Option::Some(token_user.unwrap().ok().unwrap().user)
-    } else {
-        Option::None
-    };
-
-    let can_edit = active_user.is_some() && active_user.as_ref().unwrap().username == user.username;
-
-    // get post
-    let post = data.db.get_post_by_id(post_id.clone()).await;
-
-    if post.success == false {
-        return HttpResponse::NotFound()
-            .append_header(("Content-Type", "text/plain"))
-            .body("404: Not Found");
-    }
-
-    // activity
-    let posts_res = data
-        .db
-        .get_post_replies_full(post_id.clone(), false)
-        .await
-        .payload
-        // this really *probably* won't fail
-        .unwrap();
-
-    // ...
-    let props = ViewPostTemplate {
-        user,
-        can_edit,
-        auth_state: base.auth_state,
-        info: base.info,
-        bundlrs: base.bundlrs,
-        deducktive: base.deducktive,
-        site_name: base.site_name,
-        body_embed: base.body_embed,
-        // post
-        post: post.payload.unwrap(),
-        replies: posts_res,
-        favorites_count: data.db.get_post_favorites(post_id).await.payload,
-        // TODO: is_favorited
-    };
-
-    return HttpResponse::Ok()
-        .append_header(("Set-Cookie", set_cookie))
-        .append_header(("Content-Type", "text/html"))
-        .body(props.render().unwrap());
 }
 
 #[get("/{username:.*}/followers")]
@@ -458,8 +200,6 @@ pub async fn followers_request(
             0
         },
         auth_state: base.auth_state,
-        info: base.info,
-        bundlrs: base.bundlrs,
         site_name: base.site_name,
         body_embed: base.body_embed,
     };
@@ -510,8 +250,6 @@ pub async fn following_request(
             0
         },
         auth_state: base.auth_state,
-        info: base.info,
-        bundlrs: base.bundlrs,
         site_name: base.site_name,
         body_embed: base.body_embed,
     };
@@ -567,8 +305,6 @@ pub async fn user_settings_request(
             .unwrap()
             .replace("/", "\\/"),
         auth_state: base.auth_state,
-        info: base.info,
-        bundlrs: base.bundlrs,
         site_name: base.site_name,
         body_embed: base.body_embed,
     };

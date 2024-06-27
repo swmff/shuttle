@@ -5,8 +5,16 @@ module.exports = {
     theme: {
         extend: {
             colors: {
-                brand: "hsl(214, 100%, 75%)",
-                "brand-low": "hsl(214, 100%, 70%)",
+                swmff: "rgb(243, 199, 220)",
+            },
+            animation: {
+                "fade-in": "fadein 0.25s ease-in-out 1 running",
+            },
+            keyframes: {
+                fadein: {
+                    "0%": { opacity: "0%" },
+                    "100%": { opacity: "100%" },
+                },
             },
         },
     },

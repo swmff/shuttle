@@ -9,9 +9,7 @@ use askama::Template;
 #[template(path = "homepage.html")]
 struct HomeTemplate {
     // required fields (super::base)
-    info: String,
     auth_state: bool,
-    bundlrs: String,
     site_name: String,
     body_embed: String,
 }
@@ -48,9 +46,7 @@ pub async fn home_request(req: HttpRequest, data: web::Data<db::AppData>) -> imp
         .body(
             HomeTemplate {
                 // required fields
-                info: base.info,
                 auth_state: base.auth_state,
-                bundlrs: base.bundlrs,
                 site_name: base.site_name,
                 body_embed: base.body_embed,
             }
