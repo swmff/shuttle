@@ -21,7 +21,7 @@ actix-web = "4.5.1"
 askama = "0.12.1"
 awc = { version = "3.4.0", features = ["rustls"] }
 comrak = "0.22.0"
-dorsal = { version = "0.1.5", default-features = false }
+dorsal = { version = "0.1.7", default-features = false }
 dotenv = "0.15.0"
 env_logger = "0.11.3"
 hex_fmt = "0.3.0"

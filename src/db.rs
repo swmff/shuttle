@@ -47,8 +47,22 @@ impl Database {
 
         Database {
             base: db.clone(),
-            auth: dorsal::AuthDatabase { base: db.clone() },
-            logs: dorsal::LogDatabase { base: db },
+            auth: dorsal::AuthDatabase {
+                base: db.clone(),
+                options: dorsal::db::special::auth_db::DatabaseOptions {
+                    table: String::from("sh_users"),
+                    prefix: String::from("sh_user"),
+                    logs_table: String::from("sh_logs"),
+                    logs_prefix: String::from("sh_level"),
+                },
+            },
+            logs: dorsal::LogDatabase {
+                base: db,
+                options: dorsal::db::special::log_db::DatabaseOptions {
+                    table: String::from("sh_logs"),
+                    prefix: String::from("sh_log"),
+                },
+            },
         }
     }
 
@@ -56,36 +70,23 @@ impl Database {
         let c = &self.base.db.client;
 
         let _ = sqlquery(
-            "CREATE TABLE IF NOT EXISTS \"Users\" (
-                username VARCHAR(1000000),
-                id_hashed VARCHAR(1000000),
-                role VARCHAR(1000000),
-                timestamp VARCHAR(1000000),
-                metadata VARCHAR(1000000)
+            "CREATE TABLE IF NOT EXISTS \"sh_users\" (
+                username  TEXT,
+                id_hashed TEXT,
+                role      TEXT,
+                timestamp TEXT,
+                metadata  TEXT
             )",
         )
         .execute(c)
         .await;
 
         let _ = sqlquery(
-            "CREATE TABLE IF NOT EXISTS \"Logs\" (
-                id VARCHAR(1000000),
-                logtype VARCHAR(1000000),
-                timestamp  VARCHAR(1000000),
-                content VARCHAR(1000000)
-            )",
-        )
-        .execute(c)
-        .await;
-
-        let _ = sqlquery(
-            "CREATE TABLE IF NOT EXISTS \"gup_posts\" (
-                id VARCHAR(1000000),
-                author VARCHAR(1000000),
-                content VARCHAR(1000000),
-                content_html VARCHAR(1000000),
-                reply VARCHAR(1000000),
-                timestamp VARCHAR(1000000)
+            "CREATE TABLE IF NOT EXISTS \"sh_logs\" (
+                id        TEXT,
+                logtype   TEXT,
+                timestamp TEXT,
+                content   TEXT
             )",
         )
         .execute(c)
@@ -184,9 +185,9 @@ impl Database {
 
         // ...
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "INSERT INTO \"Users\" VALUES (?, ?, ?, ?, ?)"
+            "INSERT INTO \"sh_users\" VALUES (?, ?, ?, ?, ?)"
         } else {
-            "INSERT INTO \"Users\" VALUES ($1, $2, $3, $4, $5)"
+            "INSERT INTO \"sh_users\" VALUES ($1, $2, $3, $4, $5)"
         };
 
         let user_id_unhashed: String = dorsal::utility::uuid();
@@ -245,9 +246,9 @@ impl Database {
 
         // update user
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "UPDATE \"Users\" SET \"metadata\" = ? WHERE \"username\" = ?"
+            "UPDATE \"sh_users\" SET \"metadata\" = ? WHERE \"username\" = ?"
         } else {
-            "UPDATE \"Users\" SET (\"metadata\") = ($1) WHERE \"username\" = $2"
+            "UPDATE \"sh_users\" SET (\"metadata\") = ($1) WHERE \"username\" = $2"
         };
 
         let c = &self.base.db.client;
@@ -316,9 +317,9 @@ impl Database {
 
         // update user
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "UPDATE \"Users\" SET \"role\" = ? WHERE \"username\" = ?"
+            "UPDATE \"sh_users\" SET \"role\" = ? WHERE \"username\" = ?"
         } else {
-            "UPDATE \"Users\" SET (\"role\") = ($1) WHERE \"username\" = $2"
+            "UPDATE \"sh_users\" SET (\"role\") = ($1) WHERE \"username\" = $2"
         };
 
         let c = &self.base.db.client;
@@ -376,9 +377,9 @@ impl Database {
         is_following: String,
     ) -> DefaultReturn<Option<Log>> {
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow'"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow'"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow'"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow'"
         };
 
         let c = &self.base.db.client;
@@ -425,9 +426,9 @@ impl Database {
         offset: Option<i32>,
     ) -> DefaultReturn<Option<Vec<Log>>> {
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
         };
 
         let c = &self.base.db.client;
@@ -478,9 +479,9 @@ impl Database {
         offset: Option<i32>,
     ) -> DefaultReturn<Option<Vec<Log>>> {
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET ?"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow' ORDER BY \"timestamp\" DESC LIMIT 50 OFFSET $2"
         };
 
         let c = &self.base.db.client;
@@ -526,9 +527,9 @@ impl Database {
     /// * `user` - username of user to check
     pub async fn get_user_follow_count(&self, user: String) -> DefaultReturn<usize> {
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow'"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow'"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow'"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow'"
         };
 
         let c = &self.base.db.client;
@@ -562,9 +563,9 @@ impl Database {
     /// * `user` - username of user to check
     pub async fn get_user_following_count(&self, user: String) -> DefaultReturn<usize> {
         let query: &str = if (self.base.db._type == "sqlite") | (self.base.db._type == "mysql") {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow'"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE ? AND \"logtype\" = 'follow'"
         } else {
-            "SELECT * FROM \"Logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow'"
+            "SELECT * FROM \"sh_logs\" WHERE \"content\" LIKE $1 AND \"logtype\" = 'follow'"
         };
 
         let c = &self.base.db.client;
